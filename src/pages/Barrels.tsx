@@ -122,8 +122,8 @@ const BarrelRow: React.FC<{
             title={`${type.type} Barrel ${barrel.id} (${barrel.filled ? 'Filled' : 'Empty'})`}
           >
             <svg
-              width="32"
-              height="32"
+              width="100"
+              height="100"
               viewBox="0 0 24 24"
               fill={barrel.filled ? type.color : 'none'}
               stroke={type.color}

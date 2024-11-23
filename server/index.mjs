@@ -8,6 +8,9 @@ import dotenv from 'dotenv';
 import { generateSecret } from './scripts/manage-secrets.mjs';
 import cron from 'node-cron';
 import fs from 'fs/promises';
+import rateLimit from 'express-rate-limit';
+import { body, param, validationResult } from 'express-validator';
+import helmet from 'helmet';
 
 async function initializeUsers(db) {
   console.log('Checking user initialization...');
@@ -374,7 +377,19 @@ async function initializeServer() {
       res.json({ status: 'ok' });
     });
 
-    app.post('/api/auth/login', async (req, res) => {
+    // Update rate limiter configuration
+    const loginLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 5, // Increased from 3 to 5 attempts
+      message: { 
+        error: 'Too many login attempts. Please try again after 15 minutes.',
+        remainingTime: '15 minutes'
+      },
+      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    });
+
+    app.post('/api/auth/login', loginLimiter, async (req, res) => {
       try {
         const { username, password } = req.body;
         const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
@@ -604,7 +619,19 @@ async function initializeServer() {
     });
 
     // Add new announcement
-    app.post('/api/announcements', authenticateToken, (req, res) => {
+    const validateAnnouncement = [
+      body('title').trim().notEmpty().escape(),
+      body('content').trim().notEmpty().escape(),
+      (req, res, next) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+          return res.status(400).json({ errors: errors.array() });
+        }
+        next();
+      }
+    ];
+
+    app.post('/api/announcements', authenticateToken, validateAnnouncement, (req, res) => {
       const { title, content } = req.body;
       const userId = req.user.id;
 
@@ -781,6 +808,17 @@ async function initializeServer() {
       console.error('Error:', err);
       res.status(500).json({ error: 'Internal Server Error' });
     });
+
+    // Add security headers
+    app.use(helmet());
+    app.use(helmet.contentSecurityPolicy({
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    }));
 
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {

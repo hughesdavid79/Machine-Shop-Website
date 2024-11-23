@@ -52,7 +52,7 @@ const Login = () => {
         <img 
           src={logoImage} 
           alt="RPO Logo" 
-          className="h-48 w-auto drop-shadow-xl"
+          className="h-80 w-auto drop-shadow-xl"
         />
       </div>
       
