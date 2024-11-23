@@ -1,9 +1,17 @@
 import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle, TrendingUp, Clock, Trash2, ShieldCheck, Loader2 } from 'lucide-react';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import { Link } from 'react-router-dom';
 import { getInventory, getBarrels, getAnnouncements } from '../services/api';
+
+// Helper function to check if a date is today
+const isToday = (date: Date) => {
+  const today = new Date();
+  return date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+};
 
 const productivityData = [
   { name: "Mon", value: 85 },
@@ -45,9 +53,23 @@ const utilizationData = [
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 const Dashboard = () => {
-  const { data: inventory = [] } = useQuery('inventory', getInventory);
-  const { data: barrels = [] } = useQuery('barrels', getBarrels);
-  const { data: announcements = [] } = useQuery('announcements', getAnnouncements);
+  const queryClient = useQueryClient();
+  const { data: inventory = [] } = useQuery('inventory', getInventory, {
+    refetchInterval: 1000 // Refetch every second
+  });
+  const { data: barrels = [] } = useQuery('barrels', getBarrels, {
+    refetchInterval: 1000
+  });
+  const { data: announcements = [] } = useQuery('announcements', getAnnouncements, {
+    refetchInterval: 1000
+  });
+
+  // Filter announcements to only show today's
+  const todayAnnouncements = useMemo(() => {
+    return announcements.filter(announcement => 
+      isToday(new Date(announcement.timestamp))
+    );
+  }, [announcements]);
 
   // Mock data for charts
   const utilizationData = [
@@ -58,10 +80,11 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8">
-      {/* System Messages - Moved to top */}
+      {/* System Messages */}
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium mb-4">System Messages</h3>
         <div className="space-y-4">
+          {/* Inventory Alerts */}
           {inventory
             .filter(item => item.quantity <= item.threshold)
             .map(item => (
@@ -70,15 +93,14 @@ const Dashboard = () => {
                 <span>Low inventory: {item.name} ({item.quantity} remaining)</span>
               </div>
             ))}
+          
+          {/* Barrel Alerts */}
           {barrels
             .filter(type => {
               const filledCount = type.barrels?.filter(b => b.filled).length || 0;
-              
-              if (type.type === 'Chips' || type.type === 'Vacuum') {
-                return filledCount >= type.threshold;
-              }
-              // For Coolant and Oil, alert when filled count falls below or equals threshold
-              return filledCount <= type.threshold;
+              return type.type === 'Chips' || type.type === 'Vacuum'
+                ? filledCount >= type.threshold
+                : filledCount <= type.threshold;
             })
             .map(type => (
               <div key={type.id} className="flex items-center text-yellow-700">
@@ -90,9 +112,11 @@ const Dashboard = () => {
                 </span>
               </div>
             ))}
-          {announcements.slice(0, 3).map(announcement => (
+
+          {/* Today's Announcements */}
+          {todayAnnouncements.map(announcement => (
             <div key={announcement.id} className="flex items-center text-blue-700">
-              <Clock className="h-5 w-5 mr-2" />
+              <AlertTriangle className="h-5 w-5 mr-2" />
               <span>{announcement.title}</span>
             </div>
           ))}
