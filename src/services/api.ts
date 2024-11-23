@@ -1,4 +1,5 @@
 import { API_ROUTES, getAuthHeaders } from '../config/api';
+import { getToken } from '../utils/auth';
 
 export const login = async (username: string, password: string) => {
   console.log('Login attempt:', { username });
@@ -99,7 +100,7 @@ export const deleteInventoryItem = async (id: number) => {
 };
 
 export const getBarrels = async () => {
-  const response = await fetch(API_ROUTES.BARRELS, {
+  const response = await fetch(`${API_ROUTES.BARRELS}`, {
     headers: getAuthHeaders(),
   });
 
@@ -139,21 +140,20 @@ export const getAnnouncements = async () => {
   return response.json();
 };
 
-export const addAnnouncement = async (data: {
-  title: string;
-  content: string;
-  timestamp: string;
-}) => {
-  const response = await fetch(API_ROUTES.ANNOUNCEMENTS, {
+export const addAnnouncement = async (data: Partial<Announcement>) => {
+  const response = await fetch(`${API_ROUTES.ANNOUNCEMENTS}`, {
     method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`
+    },
+    body: JSON.stringify(data)
   });
-
+  
   if (!response.ok) {
     throw new Error('Failed to add announcement');
   }
-
+  
   return response.json();
 };
 
@@ -179,7 +179,9 @@ export const updateAnnouncement = async ({ id, ...updates }: {
 export const deleteAnnouncement = async (id: number) => {
   const response = await fetch(`${API_ROUTES.ANNOUNCEMENTS}/${id}`, {
     method: 'DELETE',
-    headers: getAuthHeaders(),
+    headers: {
+      'Authorization': `Bearer ${getToken()}`
+    }
   });
 
   if (!response.ok) {
@@ -189,11 +191,21 @@ export const deleteAnnouncement = async (id: number) => {
   return response.json();
 };
 
-export const addReply = (announcementId: number, content: string) => {
-  return withDB(async (db) => {
-    const timestamp = new Date().toISOString();
-    return db.add('replies', { announcementId, content, timestamp });
+export const addReply = async (announcementId: number, data: { content: string }) => {
+  const response = await fetch(`${API_ROUTES.ANNOUNCEMENTS}/${announcementId}/replies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`
+    },
+    body: JSON.stringify(data)
   });
+
+  if (!response.ok) {
+    throw new Error('Failed to add reply');
+  }
+
+  return response.json();
 };
 
 export const toggleBarrel = async ({ id, filled }: { id: number; filled: boolean }) => {
@@ -205,6 +217,34 @@ export const toggleBarrel = async ({ id, filled }: { id: number; filled: boolean
 
   if (!response.ok) {
     throw new Error('Failed to update barrel');
+  }
+
+  return response.json();
+};
+
+export const updateBarrelCount = async (typeId: string, action: 'increment' | 'decrement') => {
+  const response = await fetch(`${API_ROUTES.BARRELS}/count/${typeId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ action }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to ${action} barrel count`);
+  }
+
+  return response.json();
+};
+
+export const updateBarrelThreshold = async (typeId: string, threshold: number) => {
+  const response = await fetch(`${API_ROUTES.BARRELS}/threshold/${typeId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ threshold }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update barrel threshold');
   }
 
   return response.json();

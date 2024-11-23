@@ -62,17 +62,16 @@ try {
 
     CREATE TABLE IF NOT EXISTS barrel_types (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT NOT NULL,
+      type TEXT UNIQUE NOT NULL,
       color TEXT NOT NULL,
-      threshold INTEGER DEFAULT 2,
-      decrementOnFill BOOLEAN DEFAULT 0
+      threshold INTEGER DEFAULT 3
     );
 
     CREATE TABLE IF NOT EXISTS barrels (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type_id INTEGER NOT NULL,
-      filled BOOLEAN DEFAULT 0,
-      FOREIGN KEY (type_id) REFERENCES barrel_types(id)
+      barrel_type_id INTEGER NOT NULL,
+      filled BOOLEAN DEFAULT false,
+      FOREIGN KEY (barrel_type_id) REFERENCES barrel_types(id)
     );
 
     CREATE TABLE IF NOT EXISTS announcements (
@@ -93,6 +92,13 @@ try {
       FOREIGN KEY (announcement_id) REFERENCES announcements(id),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    -- Insert default barrel types if not exists
+    INSERT OR IGNORE INTO barrel_types (type, color, threshold) VALUES
+      ('Chips', '#000000', 3),    -- Black
+      ('Vacuum', '#808080', 3),   -- Gray
+      ('Coolant', '#40E0D0', 3),  -- Turquoise
+      ('Oil', '#DAA520', 3);      -- Amber Brown
   `);
 
   // Initialize inventory if empty
@@ -122,34 +128,107 @@ try {
   const typesCount = db.prepare('SELECT COUNT(*) as count FROM barrel_types').get();
   if (typesCount.count === 0) {
     const insertType = db.prepare(
-      'INSERT INTO barrel_types (type, color, threshold, decrementOnFill) VALUES (?, ?, ?, ?)'
+      'INSERT INTO barrel_types (type, color, threshold) VALUES (?, ?, ?)'
     );
     
     const barrelTypes = [
-      { type: 'Chips', color: '#8B4513', threshold: 2, decrementOnFill: 0 },
-      { type: 'Vacuum', color: '#4A4A4A', threshold: 1, decrementOnFill: 0 },
-      { type: 'Coolant', color: '#4169E1', threshold: 2, decrementOnFill: 1 },
-      { type: 'Oil', color: '#8B0000', threshold: 2, decrementOnFill: 1 }
+      { type: 'Chips', color: '#000000', threshold: 3 },
+      { type: 'Vacuum', color: '#808080', threshold: 3 },
+      { type: 'Coolant', color: '#40E0D0', threshold: 3 },
+      { type: 'Oil', color: '#DAA520', threshold: 3 }
     ];
     
-    barrelTypes.forEach(({ type, color, threshold, decrementOnFill }) => {
-      insertType.run(type, color, threshold, decrementOnFill);
+    barrelTypes.forEach(({ type, color, threshold }) => {
+      insertType.run(type, color, threshold);
     });
   }
 
-  // Initialize barrels if empty
-  const barrelsCount = db.prepare('SELECT COUNT(*) as count FROM barrels').get();
-  if (barrelsCount.count === 0) {
-    const insertBarrel = db.prepare('INSERT INTO barrels (type_id) VALUES (?)');
-    const types = db.prepare('SELECT id, type FROM barrel_types').all();
-    
-    types.forEach(type => {
-      const count = type.type === 'Vacuum' ? 2 : type.type === 'Coolant' ? 4 : 3;
-      for (let i = 0; i < count; i++) {
-        insertBarrel.run(type.id);
-      }
+  // Add logging middleware
+  const logRequest = (req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${req.method} ${req.path}`);
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Query:', JSON.stringify(req.query, null, 2));
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    next();
+  };
+
+  app.use(logRequest);
+
+  // Add error logging middleware
+  const errorHandler = (err, req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] Error:`, err);
+    res.status(500).json({ 
+      error: 'Internal server error', 
+      message: err.message,
+      path: req.path
     });
-  }
+  };
+
+  // Barrels endpoint with fixed query and logging
+  app.get('/api/barrels', authenticateToken, async (req, res) => {
+    try {
+      console.log('[Barrels] Fetching barrel types...');
+      
+      const types = db.prepare('SELECT * FROM barrel_types').all();
+      console.log('[Barrels] Found types:', types);
+
+      const result = types.map(type => {
+        const barrels = db.prepare(`
+          SELECT b.* 
+          FROM barrels b
+          WHERE b.barrel_type_id = ?
+        `).all([type.id]);
+
+        return {
+          ...type,
+          barrels: barrels || []
+        };
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('[Barrels] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add error handler middleware last
+  app.use(errorHandler);
+
+  // Initialize barrels if empty (update this section too)
+  const initializeBarrels = async () => {
+    try {
+      const count = db.prepare('SELECT COUNT(*) as count FROM barrels').get().count;
+      
+      if (count === 0) {
+        console.log('[Init] Initializing barrels...');
+        
+        const types = db.prepare('SELECT * FROM barrel_types').all();
+        
+        types.forEach(type => {
+          const initialCount = type.threshold + 2;
+          const shouldBeFilled = type.type === 'Coolant' || type.type === 'Oil';
+          
+          for (let i = 0; i < initialCount; i++) {
+            db.prepare(`
+              INSERT INTO barrels (barrel_type_id, filled)
+              VALUES (?, ?)
+            `).run([type.id, shouldBeFilled]);
+          }
+        });
+        
+        console.log('[Init] Barrel initialization complete');
+      }
+    } catch (error) {
+      console.error('[Init] Error initializing barrels:', error);
+      throw error;
+    }
+  };
+
+  // Call initialization
+  initializeBarrels();
 
   // Insert demo data
   console.log('Inserting demo data...');
@@ -252,67 +331,46 @@ try {
     }
   });
 
-  app.get('/api/barrels', authenticateToken, (req, res) => {
+  app.post('/api/barrels/:typeId/count', authenticateToken, async (req, res) => {
+    const { typeId } = req.params;
+    const { action } = req.body;
+    
     try {
-      const defaultTypes = [
-        {
-          id: '1',
-          type: 'Chips',
-          color: '#000000',
-          threshold: 2,
-          decrementOnFill: false,
-        },
-        {
-          id: '2',
-          type: 'Vacuum',
-          color: '#8B4513',
-          threshold: 1,
-          decrementOnFill: false,
-        },
-        {
-          id: '3',
-          type: 'Coolant',
-          color: '#40E0D0',
-          threshold: 2,
-          decrementOnFill: true,
-        },
-        {
-          id: '4',
-          type: 'Oil',
-          color: '#FFA500',
-          threshold: 1,
-          decrementOnFill: true,
-        }
-      ];
-
-      // Get existing barrel types or use defaults
-      const types = db.prepare(`
-        SELECT * FROM barrel_types
-      `).all() || defaultTypes;
-
-      // Get barrels for each type
-      const result = types.map(type => {
-        const barrels = db.prepare(`
-          SELECT id, filled 
-          FROM barrels 
-          WHERE type_id = ?
-        `).all(type.id);
-
-        return {
-          ...type,
-          barrels: barrels.map(b => ({
-            id: b.id,
-            type: type.type,
-            color: type.color,
-            filled: Boolean(b.filled)
-          }))
-        };
-      });
-
-      res.json(result);
+      if (action === 'increment') {
+        db.prepare(`
+          INSERT INTO barrels (barrel_type_id, filled)
+          VALUES (?, false)
+        `).run(typeId);
+      } else if (action === 'decrement') {
+        db.prepare(`
+          DELETE FROM barrels
+          WHERE barrel_type_id = ?
+          AND id IN (SELECT id FROM barrels WHERE barrel_type_id = ? LIMIT 1)
+        `).run(typeId, typeId);
+      }
+      
+      res.json({ success: true });
     } catch (error) {
-      console.error('Error fetching barrels:', error);
-      res.status(500).json({ error: 'Failed to fetch barrels' });
+      console.error('Error updating barrel count:', error);
+      res.status(500).json({ error: 'Failed to update barrel count' });
+    }
+  });
+
+  app.put('/api/barrels/:typeId/threshold', authenticateToken, async (req, res) => {
+    const { typeId } = req.params;
+    const { threshold } = req.body;
+    
+    try {
+      db.prepare(`
+        UPDATE barrel_types
+        SET threshold = ?
+        WHERE id = ?
+      `).run(threshold, typeId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating threshold:', error);
+      res.status(500).json({ error: 'Failed to update threshold' });
     }
   });
 
@@ -320,7 +378,7 @@ try {
     const { typeId } = req.body;
     
     try {
-      const result = db.prepare('INSERT INTO barrels (type_id, filled) VALUES (?, 0)').run(typeId);
+      const result = db.prepare('INSERT INTO barrels (barrel_type_id, filled) VALUES (?, 0)').run(typeId);
       res.status(201).json({ id: result.lastInsertRowid });
     } catch (error) {
       console.error('Error adding barrel:', error);
@@ -395,29 +453,28 @@ try {
         SELECT 
           a.*,
           u.username as author,
-          json_group_array(
-            json_object(
-              'id', r.id,
-              'content', r.content,
-              'timestamp', r.timestamp,
-              'username', ru.username
+          COALESCE(
+            (SELECT json_group_array(
+              json_object(
+                'id', r.id,
+                'content', r.content,
+                'timestamp', r.timestamp,
+                'username', (SELECT username FROM users WHERE id = r.user_id)
+              )
             )
+            FROM announcement_replies r
+            WHERE r.announcement_id = a.id),
+            '[]'
           ) as replies
         FROM announcements a
         LEFT JOIN users u ON a.user_id = u.id
-        LEFT JOIN replies r ON a.id = r.announcement_id
-        LEFT JOIN users ru ON r.user_id = ru.id
-        GROUP BY a.id
         ORDER BY a.timestamp DESC
       `).all();
 
-      // Parse the JSON string replies back into arrays
-      const processedAnnouncements = announcements.map(ann => ({
-        ...ann,
-        replies: JSON.parse(ann.replies).filter(r => r.id !== null)
-      }));
-
-      res.json(processedAnnouncements);
+      res.json(announcements.map(announcement => ({
+        ...announcement,
+        replies: JSON.parse(announcement.replies)
+      })));
     } catch (error) {
       console.error('Error fetching announcements:', error);
       res.status(500).json({ error: 'Failed to fetch announcements' });
@@ -474,32 +531,36 @@ try {
   });
 
   // Delete announcement
-  app.delete('/api/announcements/:id', authenticateToken, (req, res) => {
+  app.delete('/api/announcements/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
     try {
-      db.prepare('BEGIN TRANSACTION').run();
+      // First check if the user is the author or an admin
+      const announcement = db.prepare(`
+        SELECT user_id FROM announcements WHERE id = ?
+      `).get(id);
 
-      // Delete replies first
-      db.prepare('DELETE FROM replies WHERE announcement_id = ?').run(id);
-
-      // Then delete the announcement
-      const result = db.prepare(`
-        DELETE FROM announcements 
-        WHERE id = ? AND user_id = ?
-        RETURNING *
-      `).get(id, userId);
-
-      if (!result) {
-        db.prepare('ROLLBACK').run();
+      if (!announcement) {
         return res.status(404).json({ error: 'Announcement not found' });
       }
 
-      db.prepare('COMMIT').run();
-      res.json(result);
+      if (announcement.user_id !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized to delete this announcement' });
+      }
+
+      // Delete all replies first
+      db.prepare(`
+        DELETE FROM announcement_replies WHERE announcement_id = ?
+      `).run(id);
+
+      // Then delete the announcement
+      db.prepare(`
+        DELETE FROM announcements WHERE id = ?
+      `).run(id);
+
+      res.json({ success: true });
     } catch (error) {
-      db.prepare('ROLLBACK').run();
       console.error('Error deleting announcement:', error);
       res.status(500).json({ error: 'Failed to delete announcement' });
     }
@@ -507,21 +568,71 @@ try {
 
   // Add reply to announcement
   app.post('/api/announcements/:id/replies', authenticateToken, (req, res) => {
-    const { id } = req.params;
     const { content } = req.body;
     const userId = req.user.id;
-    
+    const announcementId = req.params.id;
+
     try {
       const result = db.prepare(`
-        INSERT INTO replies (announcement_id, content, user_id, timestamp)
-        VALUES (?, ?, ?, datetime('now'))
+        INSERT INTO announcement_replies (announcement_id, user_id, content)
+        VALUES (?, ?, ?)
         RETURNING *
-      `).get(id, content, userId);
+      `).get(announcementId, userId, content);
 
-      res.status(201).json(result);
+      res.json(result);
     } catch (error) {
       console.error('Error adding reply:', error);
       res.status(500).json({ error: 'Failed to add reply' });
+    }
+  });
+
+  // Update barrel count
+  app.put('/api/barrels/count/:typeId', authenticateToken, async (req, res) => {
+    const { typeId } = req.params;
+    const { action } = req.body;
+    
+    try {
+      if (action === 'increment') {
+        db.prepare(`
+          INSERT INTO barrels (barrel_type_id, filled)
+          VALUES (?, false)
+        `).run([typeId]);
+      } else {
+        // Find the last barrel of this type and delete it
+        const lastBarrel = db.prepare(`
+          SELECT id FROM barrels 
+          WHERE barrel_type_id = ? 
+          ORDER BY id DESC LIMIT 1
+        `).get([typeId]);
+        
+        if (lastBarrel) {
+          db.prepare('DELETE FROM barrels WHERE id = ?').run([lastBarrel.id]);
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Barrels] Error updating count:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update barrel threshold
+  app.put('/api/barrels/threshold/:typeId', authenticateToken, async (req, res) => {
+    const { typeId } = req.params;
+    const { threshold } = req.body;
+    
+    try {
+      db.prepare(`
+        UPDATE barrel_types 
+        SET threshold = ? 
+        WHERE id = ?
+      `).run([threshold, typeId]);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Barrels] Error updating threshold:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 

@@ -73,12 +73,21 @@ const Dashboard = () => {
           {barrels
             .filter(type => {
               const filledCount = type.barrels?.filter(b => b.filled).length || 0;
+              
+              if (type.type === 'Chips' || type.type === 'Vacuum') {
+                return filledCount >= type.threshold;
+              }
+              // For Coolant and Oil, alert when filled count falls below or equals threshold
               return filledCount <= type.threshold;
             })
             .map(type => (
               <div key={type.id} className="flex items-center text-yellow-700">
                 <AlertTriangle className="h-5 w-5 mr-2" />
-                <span>Low barrel count: {type.type}</span>
+                <span>
+                  {type.type === 'Chips' || type.type === 'Vacuum' 
+                    ? `Warning: ${type.type} barrels need emptying`
+                    : `Low ${type.type} level - needs refill`}
+                </span>
               </div>
             ))}
           {announcements.slice(0, 3).map(announcement => (
