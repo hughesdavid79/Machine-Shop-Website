@@ -249,3 +249,36 @@ export const updateBarrelThreshold = async (typeId: string, threshold: number) =
 
   return response.json();
 };
+
+export const updateReply = async (announcementId: number, replyId: number, content: string) => {
+  const response = await fetch(
+    `${API_ROUTES.ANNOUNCEMENTS}/${announcementId}/replies/${replyId}`,
+    {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ content })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to update reply');
+  }
+
+  return response.json();
+};
+
+export const deleteReply = async (announcementId: number, replyId: number) => {
+  const response = await fetch(
+    `${API_ROUTES.ANNOUNCEMENTS}/${announcementId}/replies/${replyId}`,
+    {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to delete reply');
+  }
+
+  return response.json();
+};

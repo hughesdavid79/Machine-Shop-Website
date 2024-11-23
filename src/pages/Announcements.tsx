@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useQuery, useQueryClient } from 'react-query';
-import { getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, addReply } from '../services/api';
+import { getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, addReply, updateReply, deleteReply } from '../services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { Edit2, Trash2, MessageSquare, X, Plus } from 'lucide-react';
 
@@ -29,6 +29,8 @@ const Announcements = () => {
   const [editingAnnouncement, setEditingAnnouncement] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ title: '', content: '' });
   const [replyForms, setReplyForms] = useState<Record<number, string>>({});
+  const [editingReply, setEditingReply] = useState<{ id: number; announcementId: number } | null>(null);
+  const [editReplyContent, setEditReplyContent] = useState('');
 
   const handleAddAnnouncement = async () => {
     try {
@@ -80,6 +82,28 @@ const Announcements = () => {
       setReplyForms(prev => ({ ...prev, [announcementId]: '' }));
     } catch (error) {
       console.error('Failed to add reply:', error);
+    }
+  };
+
+  const handleEditReply = async (announcementId: number, replyId: number, content: string) => {
+    try {
+      await updateReply(announcementId, replyId, content);
+      await queryClient.invalidateQueries('announcements');
+      setEditingReply(null);
+      setEditReplyContent('');
+    } catch (error) {
+      console.error('Failed to update reply:', error);
+    }
+  };
+
+  const handleDeleteReply = async (announcementId: number, replyId: number) => {
+    if (window.confirm('Are you sure you want to delete this reply?')) {
+      try {
+        await deleteReply(announcementId, replyId);
+        await queryClient.invalidateQueries('announcements');
+      } catch (error) {
+        console.error('Failed to delete reply:', error);
+      }
     }
   };
 
@@ -175,12 +199,57 @@ const Announcements = () => {
 
           {/* Replies Section */}
           <div className="mt-4 space-y-2">
-            {announcement.replies?.map(reply => (
-              <div key={reply.id} className="bg-gray-100 p-3 rounded-lg shadow">
-                <p>{reply.content}</p>
-                <small className="text-gray-600">
-                  {formatDistanceToNow(new Date(reply.timestamp))} ago
-                </small>
+            {announcement.replies?.map((reply) => (
+              <div key={reply.id} className="ml-8 mt-2 p-2 bg-gray-50 rounded">
+                {editingReply?.id === reply.id ? (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      value={editReplyContent}
+                      onChange={(e) => setEditReplyContent(e.target.value)}
+                      className="w-full p-2 border rounded"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditReply(announcement.id, reply.id, editReplyContent)}
+                        className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingReply(null);
+                          setEditReplyContent('');
+                        }}
+                        className="px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p>{reply.content}</p>
+                    {(user?.role === 'admin' || user?.id === reply.user_id) && (
+                      <div className="flex gap-2 mt-1">
+                        <button
+                          onClick={() => {
+                            setEditingReply({ id: reply.id, announcementId: announcement.id });
+                            setEditReplyContent(reply.content);
+                          }}
+                          className="text-sm text-blue-500 hover:text-blue-600"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteReply(announcement.id, reply.id)}
+                          className="text-sm text-red-500 hover:text-red-600"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             ))}
             

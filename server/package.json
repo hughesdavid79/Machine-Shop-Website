@@ -4,8 +4,10 @@
   "type": "module",
   "main": "index.mjs",
   "scripts": {
+    "rotate-secrets": "node scripts/manage-secrets.mjs",
     "start": "node index.mjs",
-    "dev": "node index.mjs"
+    "dev": "node index.mjs",
+    "setup-auth": "node scripts/setup-auth.mjs"
   },
   "keywords": [],
   "author": "",
