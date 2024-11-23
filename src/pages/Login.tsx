@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { AlertCircle } from 'lucide-react';
+import backgroundImage from '../assets/images/BackgroundImage.jpeg';
+import logoImage from '../assets/images/RPOLOGO.jpg';
 
 const Login = () => {
   console.log('Login component rendering');
@@ -43,7 +44,18 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div 
+      className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${backgroundImage})` }}
+    >
+      <div className="mb-8">
+        <img 
+          src={logoImage} 
+          alt="RPO Logo" 
+          className="h-48 w-auto drop-shadow-xl"
+        />
+      </div>
+      
       <div className="max-w-md w-full space-y-8 bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-8 shadow-2xl">
         <div>
           <h2 className="text-center text-4xl font-extrabold font-['Orbitron'] text-white">
@@ -52,16 +64,6 @@ const Login = () => {
           <p className="mt-2 text-center text-sm text-gray-300 tracking-widest font-bold">
             PRECISION MANUFACTURING
           </p>
-          
-          <div className="mt-4 p-4 bg-blue-900 bg-opacity-50 rounded-md">
-            <p className="text-sm text-blue-200">
-              <strong>Demo Credentials:</strong>
-              <br />
-              Admin: username: "admin" / password: "admin123"
-              <br />
-              User: username: "user" / password: "user123"
-            </p>
-          </div>
         </div>
         
         {error && (
