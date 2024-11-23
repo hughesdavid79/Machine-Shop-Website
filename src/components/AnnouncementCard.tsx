@@ -74,13 +74,27 @@ const AnnouncementCard = ({ announcement, onDelete, onEdit }) => {
               </div>
               
               {announcement.replies?.map((reply) => (
-                <div key={reply.id} className="card mb-2">
-                  <div className="card-body py-2">
-                    <p className="mb-1">{reply.content}</p>
-                    <small className="text-muted">
-                      {reply.username} - {formatDate(reply.timestamp)}
-                    </small>
-                  </div>
+                <div key={reply.id} className="ml-8 mt-2 p-2 bg-gray-50 rounded">
+                  <p>{reply.content}</p>
+                  {user?.role === 'admin' && (
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => {
+                          setEditingReply({ id: reply.id, announcementId: announcement.id });
+                          setEditReplyContent(reply.content);
+                        }}
+                        className="text-sm text-blue-500 hover:text-blue-600"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReply(announcement.id, reply.id)}
+                        className="text-sm text-red-500 hover:text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

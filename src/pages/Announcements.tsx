@@ -229,7 +229,7 @@ const Announcements = () => {
                 ) : (
                   <>
                     <p>{reply.content}</p>
-                    {(user?.role === 'admin' || user?.id === reply.user_id) && (
+                    {user?.role === 'admin' && (
                       <div className="flex gap-2 mt-1">
                         <button
                           onClick={() => {

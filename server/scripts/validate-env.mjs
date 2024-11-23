@@ -8,6 +8,7 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8),
   USER_USERNAME: z.string().min(3),
   USER_PASSWORD: z.string().min(8),
+  FRONTEND_URL: z.string().url().optional()
 });
 
 export function validateEnv() {

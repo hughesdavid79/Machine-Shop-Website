@@ -86,9 +86,31 @@ async function initializeServer() {
     console.log('Database connected');
 
     // Middleware
+
+        // Security middleware
+
+            // Update rate limiter configuration
+    const loginLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 5, // 5 attempts
+      message: { error: 'Too many login attempts. Please try again after 15 minutes.' }
+    });
+        app.use(helmet());
+        app.use(helmet.contentSecurityPolicy({
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+          },
+        }));
+
     app.use(cors({
-      origin: 'http://localhost:5173',
-      credentials: true
+      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true,
+      maxAge: 86400
     }));
     app.use(express.json());
     app.use(express.static('public'));
@@ -285,19 +307,9 @@ async function initializeServer() {
       const userId = req.user.id;
 
       try {
-        // Check if user is admin or reply author
-        const reply = db.prepare(`
-          SELECT user_id 
-          FROM announcement_replies 
-          WHERE id = ?
-        `).get(replyId);
-        
-        if (!reply) {
-          return res.status(404).json({ error: 'Reply not found' });
-        }
-
-        if (reply.user_id !== userId && req.user.role !== 'admin') {
-          return res.status(403).json({ error: 'Unauthorized to edit this reply' });
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+          return res.status(403).json({ error: 'Only administrators can edit replies' });
         }
 
         const result = db.prepare(`
@@ -306,6 +318,10 @@ async function initializeServer() {
           WHERE id = ?
           RETURNING id, content, user_id, timestamp
         `).get(content, replyId);
+
+        if (!result) {
+          return res.status(404).json({ error: 'Reply not found' });
+        }
 
         res.json(result);
       } catch (error) {
@@ -320,18 +336,15 @@ async function initializeServer() {
       const userId = req.user.id;
 
       try {
-        const reply = db.prepare(`
-          SELECT user_id 
-          FROM announcement_replies 
-          WHERE id = ?
-        `).get(replyId);
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+          return res.status(403).json({ error: 'Only administrators can delete replies' });
+        }
+
+        const reply = db.prepare('SELECT id FROM announcement_replies WHERE id = ?').get(replyId);
         
         if (!reply) {
           return res.status(404).json({ error: 'Reply not found' });
-        }
-
-        if (reply.user_id !== userId && req.user.role !== 'admin') {
-          return res.status(403).json({ error: 'Unauthorized to delete this reply' });
         }
 
         db.prepare('DELETE FROM announcement_replies WHERE id = ?').run(replyId);
@@ -375,18 +388,6 @@ async function initializeServer() {
     // Add your routes here
     app.get('/api/health', (req, res) => {
       res.json({ status: 'ok' });
-    });
-
-    // Update rate limiter configuration
-    const loginLimiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 5, // Increased from 3 to 5 attempts
-      message: { 
-        error: 'Too many login attempts. Please try again after 15 minutes.',
-        remainingTime: '15 minutes'
-      },
-      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     });
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -808,17 +809,6 @@ async function initializeServer() {
       console.error('Error:', err);
       res.status(500).json({ error: 'Internal Server Error' });
     });
-
-    // Add security headers
-    app.use(helmet());
-    app.use(helmet.contentSecurityPolicy({
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
-      },
-    }));
 
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {
