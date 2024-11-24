@@ -148,12 +148,21 @@ async function initializeServer() {
           },
         }));
 
+    const allowedOrigins = [
+      'https://rpomachineshop.com',
+      'http://localhost:5173'  // Local development URL
+    ];
+
     app.use(cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      credentials: true,
-      maxAge: 86400
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
+      credentials: true
     }));
     app.use(express.json());
     app.use(express.static('public'));
