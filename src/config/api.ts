@@ -1,5 +1,5 @@
 const API_BASE_URL = import.meta.env.PROD
-  ? 'https://api.rpomachineshop.com'
+  ? 'https://machine-shop-website.onrender.com'
   : 'http://localhost:3001';
 
 export const API_ROUTES = {

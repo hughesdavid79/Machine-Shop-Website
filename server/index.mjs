@@ -430,11 +430,22 @@ async function initializeServer() {
 
     // Add your routes here
     app.get('/api/health', (req, res) => {
-      res.json({ 
-        status: 'healthy',
-        environment: process.env.NODE_ENV,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        // Test database connection
+        const dbTest = db.prepare('SELECT 1').get();
+        
+        res.json({
+          status: 'healthy',
+          database: dbTest ? 'connected' : 'error',
+          environment: process.env.NODE_ENV,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          status: 'unhealthy',
+          error: error.message
+        });
+      }
     });
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -853,11 +864,17 @@ async function initializeServer() {
     });
 
     app.use((err, req, res, next) => {
-      console.error(`[Error] ${req.method} ${req.path}:`, err);
+      console.error('Server Error:', err);
       res.status(500).json({
-        error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'An error occurred'
+        error: process.env.NODE_ENV === 'production' 
+          ? 'Internal Server Error' 
+          : err.message
       });
+    });
+
+    app.use((req, res, next) => {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+      next();
     });
 
     const PORT = process.env.PORT || 3001;

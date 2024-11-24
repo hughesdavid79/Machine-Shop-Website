@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.VITE_API_URL': JSON.stringify(
         isProduction 
-          ? 'https://api.rpomachineshop.com'
+          ? 'https://machine-shop-website.onrender.com'
           : 'http://localhost:3001'
       )
     },

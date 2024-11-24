@@ -5,25 +5,23 @@ services:
     buildCommand: |
       cd server
       npm install
-      npm ci
     startCommand: cd server && npm start
+    rootDir: server
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3001
-    domains:
-      - api.rpomachineshop.com
+    # No custom domain for backend - will use Render's default URL
 
   - type: static
     name: machine-shop-website-frontend
-    buildCommand: |
-      npm install
-      npm run build
+    buildCommand: npm install && npm run build
+    rootDir: .
     publishDir: dist
     envVars:
       - key: VITE_API_URL
-        value: https://api.rpomachineshop.com
+        value: https://machine-shop-website.onrender.com
     domains:
       - rpomachineshop.com
       - www.rpomachineshop.com
