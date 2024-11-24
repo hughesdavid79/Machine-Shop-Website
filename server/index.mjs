@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -5,12 +7,18 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import Database from 'better-sqlite3';
 import dotenv from 'dotenv';
-import { generateSecret } from './scripts/manage-secrets.mjs';
 import cron from 'node-cron';
 import fs from 'fs/promises';
 import rateLimit from 'express-rate-limit';
 import { body, param, validationResult } from 'express-validator';
 import helmet from 'helmet';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Update database path
+const dbPath = join(__dirname, 'database.sqlite');
+const db = new Database(dbPath, { verbose: console.log });
 
 async function initializeUsers(db) {
   console.log('Checking user initialization...');
@@ -20,37 +28,23 @@ async function initializeUsers(db) {
     if (userCount.count === 0) {
       // Validate environment variables
       const requiredVars = ['ADMIN_USERNAME', 'ADMIN_PASSWORD', 'USER_USERNAME', 'USER_PASSWORD'];
-      const missing = requiredVars.filter(varName => !process.env[varName]);
-      
-      if (missing.length > 0) {
-        console.error('Missing required environment variables:', missing.join(', '));
-        process.exit(1);
-      }
+      requiredVars.forEach(varName => {
+        if (!process.env[varName]) {
+          throw new Error(`Missing required environment variable: ${varName}`);
+        }
+      });
 
-      const salt = bcrypt.genSaltSync(10);
-      const insertUser = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)');
-      
       // Create admin user
-      insertUser.run(
-        process.env.ADMIN_USERNAME,
-        bcrypt.hashSync(process.env.ADMIN_PASSWORD, salt),
-        'admin'
-      );
+      const adminHash = await bcrypt.hash(process.env.ADMIN_PASSWORD, 10);
+      db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
+        .run(process.env.ADMIN_USERNAME, adminHash, 'admin');
       console.log('Admin user created successfully');
 
       // Create regular user
-      insertUser.run(
-        process.env.USER_USERNAME,
-        bcrypt.hashSync(process.env.USER_PASSWORD, salt),
-        'user'
-      );
+      const userHash = await bcrypt.hash(process.env.USER_PASSWORD, 10);
+      db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)')
+        .run(process.env.USER_USERNAME, userHash, 'user');
       console.log('Regular user created successfully');
-
-      // Verify users were created
-      const createdUsers = db.prepare('SELECT username, role FROM users').all();
-      console.log('Created users:', createdUsers);
-    } else {
-      console.log('Users already initialized');
     }
   } catch (error) {
     console.error('Error initializing users:', error);
@@ -103,20 +97,17 @@ async function initializeBarrels(db) {
 
 async function initializeServer() {
   try {
-    // Initialize configuration
     dotenv.config();
     
-    // Generate initial JWT secret if not exists
     if (!process.env.JWT_SECRET) {
       const secret = await generateSecret();
-      await fs.appendFile('.env', `\nJWT_SECRET=${secret}`);
       process.env.JWT_SECRET = secret;
     }
 
-    // Schedule secret rotation (weekly)
+    // Weekly secret rotation
     cron.schedule('0 0 * * 0', async () => {
       try {
-        await updateSecrets();
+        process.env.JWT_SECRET = await generateSecret();
         console.log('JWT secret rotated successfully');
       } catch (error) {
         console.error('Failed to rotate JWT secret:', error);
@@ -148,12 +139,24 @@ async function initializeServer() {
           },
         }));
 
+    const allowedOrigins = [
+      'https://hughesdavid79.github.io',
+      'https://rpomachineshop.com',
+      'http://localhost:5173'
+    ];
+
     app.use(cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn(`[CORS] Blocked request from: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
-      maxAge: 86400
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'Authorization']
     }));
     app.use(express.json());
     app.use(express.static('public'));
@@ -409,7 +412,22 @@ async function initializeServer() {
 
     // Add your routes here
     app.get('/api/health', (req, res) => {
-      res.json({ status: 'ok' });
+      try {
+        // Test database connection
+        const dbTest = db.prepare('SELECT 1').get();
+        
+        res.json({
+          status: 'healthy',
+          database: dbTest ? 'connected' : 'error',
+          environment: process.env.NODE_ENV,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          status: 'unhealthy',
+          error: error.message
+        });
+      }
     });
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -822,14 +840,43 @@ async function initializeServer() {
       }
     });
 
+    // Add health check endpoint first
+    app.get('/healthz', (req, res) => {
+      try {
+        // Test database connection
+        const dbTest = db.prepare('SELECT 1').get();
+        
+        res.json({
+          status: 'healthy',
+          database: dbTest ? 'connected' : 'error',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          status: 'unhealthy',
+          error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : error.message
+        });
+      }
+    });
+
+    // Then add the 404 handler
     app.use((req, res) => {
       console.log('404 Not Found:', req.method, req.url);
       res.status(404).json({ error: 'Not Found' });
     });
 
     app.use((err, req, res, next) => {
-      console.error('Error:', err);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('Server Error:', err);
+      res.status(500).json({
+        error: process.env.NODE_ENV === 'production' 
+          ? 'Internal Server Error' 
+          : err.message
+      });
+    });
+
+    app.use((req, res, next) => {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+      next();
     });
 
     const PORT = process.env.PORT || 3001;

@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: machine-shop-website-backend
+    env: node
+    buildCommand: |
+      cd server
+      npm install
+    startCommand: cd server && npm start
+    rootDir: server
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        sync: false  # Set this in Render dashboard
+      - key: ADMIN_PASSWORD
+        sync: false  # Set this in Render dashboard
+      - key: USER_USERNAME
+        sync: false  # Set this in Render dashboard
+      - key: USER_PASSWORD
+        sync: false  # Set this in Render dashboard
+    nodeVersion: 18.x
+    # No custom domain for backend - will use Render's default URL
+
+  - type: static
+    name: machine-shop-website-frontend
+    buildCommand: |
+      npm install --verbose
+      chmod +x scripts/build-check.sh
+      ./scripts/build-check.sh
+      npm run build
+    rootDir: .
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://machine-shop-website.onrender.com
+    domains:
+      - rpomachineshop.com
+      - www.rpomachineshop.com
