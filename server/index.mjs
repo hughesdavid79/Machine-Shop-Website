@@ -58,6 +58,49 @@ async function initializeUsers(db) {
   }
 }
 
+async function initializeBarrels(db) {
+  console.log('[Init] Initializing barrels...');
+  
+  try {
+    // Check if barrels already exist
+    const barrelCount = db.prepare('SELECT COUNT(*) as count FROM barrels').get();
+    
+    if (barrelCount.count === 0) {
+      console.log('[Init] Creating initial barrels...');
+      
+      // Begin transaction
+      db.exec('BEGIN TRANSACTION;');
+      
+      try {
+        const types = db.prepare('SELECT * FROM barrel_types').all();
+        
+        types.forEach(type => {
+          // Add exactly 3 barrels for each type
+          const stmt = db.prepare(`
+            INSERT INTO barrels (barrel_type_id, filled)
+            VALUES (?, false)
+          `);
+          
+          for (let i = 0; i < 3; i++) {
+            stmt.run(type.id);
+          }
+        });
+        
+        db.exec('COMMIT;');
+        console.log('[Init] Initial barrels created successfully');
+      } catch (error) {
+        db.exec('ROLLBACK;');
+        throw error;
+      }
+    } else {
+      console.log('[Init] Barrels already exist, count:', barrelCount.count);
+    }
+  } catch (error) {
+    console.error('[Init] Error in barrel initialization:', error);
+    throw error;
+  }
+}
+
 async function initializeServer() {
   try {
     // Initialize configuration
@@ -204,6 +247,9 @@ async function initializeServer() {
         ('Coolant', '#40E0D0', 3),  -- Turquoise
         ('Oil', '#DAA520', 3);      -- Amber Brown
     `);
+
+    // Initialize barrels after table creation
+    await initializeBarrels(db);
 
     // Initialize inventory if empty
     console.log('Initializing inventory...');
@@ -357,30 +403,6 @@ async function initializeServer() {
 
     // Add error handler middleware last
     app.use(errorHandler);
-
-    // Initialize barrels if empty (update this section too)
-    const initializeBarrels = async () => {
-      console.log('[Init] Initializing barrels...');
-      try {
-        const types = db.prepare('SELECT * FROM barrel_types').all();
-        types.forEach((type) => {
-          const count = 3; // Default count for each type
-          for (let i = 0; i < count; i++) {
-            db.prepare(`
-              INSERT INTO barrels (barrel_type_id, filled)
-              VALUES (?, false)
-            `).run(type.id);
-          }
-        });
-        console.log('[Init] Barrel initialization complete');
-      } catch (error) {
-        console.error('[Init] Error initializing barrels:', error);
-        throw error;
-      }
-    };
-
-    // Call initialization
-    initializeBarrels();
 
     // Initialize users before starting the server
     await initializeUsers(db);
