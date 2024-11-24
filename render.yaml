@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: machine-shop-inventory
+    env: node
+    buildCommand: |
+      npm install
+      cd server
+      npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+    domains:
+      - api.rpomachineshop.com
+
+  - type: static
+    name: machine-shop-website-frontend
+    buildCommand: |
+      npm install
+      npm run build
+    publishDir: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://api.rpomachineshop.com
+    domains:
+      - rpomachineshop.com
+      - www.rpomachineshop.com
