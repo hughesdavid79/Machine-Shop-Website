@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: machine-shop-inventory
+    name: machine-shop-website-backend
     env: node
     buildCommand: |
-      npm install
       cd server
       npm install
+      npm ci
     startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
@@ -21,10 +21,6 @@ services:
       npm install
       npm run build
     publishDir: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
     envVars:
       - key: VITE_API_URL
         value: https://api.rpomachineshop.com
