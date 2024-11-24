@@ -873,6 +873,24 @@ async function initializeServer() {
       next();
     });
 
+    app.get('/healthz', (req, res) => {
+      try {
+        // Test database connection
+        const dbTest = db.prepare('SELECT 1').get();
+        
+        res.json({
+          status: 'healthy',
+          database: dbTest ? 'connected' : 'error',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          status: 'unhealthy',
+          error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : error.message
+        });
+      }
+    });
+
     const PORT = process.env.PORT || 3001;
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);

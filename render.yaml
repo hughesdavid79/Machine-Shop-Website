@@ -7,13 +7,12 @@ services:
       npm install
     startCommand: cd server && npm start
     rootDir: server
+    healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3001
-      - key: JWT_SECRET
-        generateValue: true
     nodeVersion: 18.x
     # No custom domain for backend - will use Render's default URL
 
