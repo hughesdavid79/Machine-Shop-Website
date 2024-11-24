@@ -1,11 +1,6 @@
-const isDevelopment = import.meta.env.MODE === 'development';
-console.log('Current environment:', import.meta.env.MODE);
-
-const API_BASE_URL = isDevelopment
-  ? 'http://localhost:3001/api'
-  : 'https://machine-shop-website.onrender.com/api';
-
-console.log('Using API URL:', API_BASE_URL);
+const API_BASE_URL = import.meta.env.PROD
+  ? 'https://api.rpomachineshop.com'
+  : 'http://localhost:3001';
 
 export const API_ROUTES = {
   LOGIN: `${API_BASE_URL}/auth/login`,
