@@ -56,7 +56,7 @@ scripts/validate-env.mjs
 
 # Deploy configuration
 DEPLOY.md
-render.yaml
+
 render.json
 
 # Coverage and test files

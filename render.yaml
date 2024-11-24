@@ -3,11 +3,10 @@ services:
     name: machine-shop-website-backend
     env: node
     buildCommand: |
-      npm install
       cd server
       npm install
-      cd ..
-    startCommand: cd server && NODE_ENV=production node index.mjs
+      npm ci
+    startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
         value: production

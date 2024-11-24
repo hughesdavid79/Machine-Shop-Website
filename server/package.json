@@ -4,7 +4,7 @@
   "type": "module",
   "main": "index.mjs",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node index.mjs",
+    "start": "cross-env NODE_ENV=production node --trace-warnings index.mjs",
     "dev": "cross-env NODE_ENV=development node index.mjs"
   },
   "dependencies": {
