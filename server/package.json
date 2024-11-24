@@ -4,8 +4,8 @@
   "type": "module",
   "main": "index.mjs",
   "scripts": {
-    "start": "NODE_ENV=production node index.mjs",
-    "dev": "NODE_ENV=development node index.mjs"
+    "start": "cross-env NODE_ENV=production node index.mjs",
+    "dev": "cross-env NODE_ENV=development node index.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
