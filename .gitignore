@@ -13,14 +13,17 @@ dist
 dist-ssr
 *.local
 build/
+.output/
 
 # Environment files
 .env
 .env.*
 !.env.example
+!.env.production
 server/.env
 server/.env.*
 !server/.env.example
+!server/.env.production
 
 # Database files
 *.db
@@ -53,12 +56,22 @@ scripts/validate-env.mjs
 .temp
 .tmp
 *.bak
+.vite/
 
 # Deploy configuration
 DEPLOY.md
+.vercel
+.netlify
+.render
 
-render.json
-
-# Coverage and test files
+# Test files
 coverage/
 .nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+.tscache/
+
+# Debug files
+debug.log
+debug.html

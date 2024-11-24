@@ -30,6 +30,7 @@ services:
     name: machine-shop-website-frontend
     buildCommand: |
       npm install --verbose
+      ./scripts/build-check.sh
       npm run build
     rootDir: .
     publishDir: dist
