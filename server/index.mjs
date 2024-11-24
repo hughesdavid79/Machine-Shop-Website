@@ -7,7 +7,6 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import Database from 'better-sqlite3';
 import dotenv from 'dotenv';
-import { generateSecret } from './scripts/manage-secrets.mjs';
 import cron from 'node-cron';
 import fs from 'fs/promises';
 import rateLimit from 'express-rate-limit';
@@ -112,20 +111,17 @@ async function initializeBarrels(db) {
 
 async function initializeServer() {
   try {
-    // Initialize configuration
     dotenv.config();
     
-    // Generate initial JWT secret if not exists
     if (!process.env.JWT_SECRET) {
       const secret = await generateSecret();
-      await fs.appendFile('.env', `\nJWT_SECRET=${secret}`);
       process.env.JWT_SECRET = secret;
     }
 
-    // Schedule secret rotation (weekly)
+    // Weekly secret rotation
     cron.schedule('0 0 * * 0', async () => {
       try {
-        await updateSecrets();
+        process.env.JWT_SECRET = await generateSecret();
         console.log('JWT secret rotated successfully');
       } catch (error) {
         console.error('Failed to rotate JWT secret:', error);
