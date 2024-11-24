@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Info</title>
+    <script>
+        function checkMIMEType(url) {
+            fetch(url)
+                .then(response => {
+                    console.log(`[Debug] Response headers for ${url}:`, {
+                        contentType: response.headers.get('content-type'),
+                        headers: Object.fromEntries([...response.headers])
+                    });
+                })
+                .catch(error => {
+                    console.error(`[Debug] Error fetching ${url}:`, error);
+                });
+        }
+
+        // Check main script MIME type
+        window.onload = () => {
+            checkMIMEType('/src/main.tsx');
+            checkMIMEType('/assets/index.js');
+        };
+    </script>
+</head>
+<body>
+    <h1>Debug Information</h1>
+    <p>Check browser console for MIME type information</p>
+</body>
+</html> 

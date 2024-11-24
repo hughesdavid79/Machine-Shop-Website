@@ -1,5 +1,17 @@
 /*
-  Access-Control-Allow-Origin: *
-  Content-Type: application/javascript
+  Content-Type: text/javascript
   X-Content-Type-Options: nosniff
+  Access-Control-Allow-Origin: *
+
+/*.js
+  Content-Type: text/javascript
+
+/*.mjs
+  Content-Type: text/javascript
+
+/*.css
+  Content-Type: text/css
+
+/*.html
+  Content-Type: text/html
 */ 
