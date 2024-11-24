@@ -13,6 +13,16 @@ services:
         value: production
       - key: PORT
         value: 3001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        sync: false  # Set this in Render dashboard
+      - key: ADMIN_PASSWORD
+        sync: false  # Set this in Render dashboard
+      - key: USER_USERNAME
+        sync: false  # Set this in Render dashboard
+      - key: USER_PASSWORD
+        sync: false  # Set this in Render dashboard
     nodeVersion: 18.x
     # No custom domain for backend - will use Render's default URL
 
