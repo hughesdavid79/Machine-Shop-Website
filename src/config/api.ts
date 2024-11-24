@@ -1,6 +1,4 @@
-const API_BASE_URL = import.meta.env.PROD
-  ? 'https://machine-shop-website.onrender.com'
-  : 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export const API_ROUTES = {
   LOGIN: `${API_BASE_URL}/auth/login`,

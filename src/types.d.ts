@@ -14,8 +14,7 @@ interface Reply {
   announcementId: string;
 }
 
-declare module 'react' {
-  interface JSX.IntrinsicElements {
-    [elemName: string]: any;
-  }
-} 
+declare module '*.jpg';
+declare module '*.jpeg';
+declare module '*.png';
+declare module '*.svg'; 
