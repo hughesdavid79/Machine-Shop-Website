@@ -42,3 +42,5 @@ server/scripts/reset-db.mjs
 database.sqlite
 
 *.db
+
+DEPLOY.md

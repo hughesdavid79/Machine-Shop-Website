@@ -159,11 +159,13 @@ async function initializeServer() {
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
-          console.warn('Blocked by CORS:', origin);
+          console.warn(`[CORS] Blocked request from: ${origin}`);
           callback(new Error('Not allowed by CORS'));
         }
       },
-      credentials: true
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'Authorization']
     }));
     app.use(express.json());
     app.use(express.static('public'));
@@ -419,7 +421,7 @@ async function initializeServer() {
 
     // Add your routes here
     app.get('/api/health', (req, res) => {
-      res.json({ status: 'ok' });
+      res.json({ status: 'healthy', environment: process.env.NODE_ENV });
     });
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {
@@ -838,8 +840,11 @@ async function initializeServer() {
     });
 
     app.use((err, req, res, next) => {
-      console.error('Error:', err);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error(`[Error] ${req.method} ${req.path}:`, err);
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'An error occurred'
+      });
     });
 
     const PORT = process.env.PORT || 3001;
