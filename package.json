@@ -9,7 +9,7 @@
     "dev:backend": "cross-env NODE_ENV=development node server/index.mjs",
     "reset-db": "node server/scripts/reset-db.mjs",
     "start": "cross-env NODE_ENV=production node server/index.mjs",
-    "build": "vite build",
+    "build": "cd server && npm install && cd .. && vite build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },

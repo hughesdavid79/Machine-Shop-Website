@@ -4,24 +4,20 @@
   "type": "module",
   "main": "index.mjs",
   "scripts": {
-    "rotate-secrets": "node scripts/manage-secrets.mjs",
     "start": "node index.mjs",
-    "dev": "node index.mjs",
-    "setup-auth": "node scripts/setup-auth.mjs"
+    "dev": "node index.mjs"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.5.0",
+    "better-sqlite3": "^8.0.1",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.1",
-    "express-rate-limit": "^6.11.2",
-    "express-validator": "^7.2.0",
-    "helmet": "^7.2.0",
-    "jsonwebtoken": "^9.0.2",
-    "zod": "^3.23.8"
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "node-cron": "^3.0.2",
+    "zod": "^3.21.4"
   }
 }

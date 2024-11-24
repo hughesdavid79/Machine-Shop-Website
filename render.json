@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd server && npm install && cd .. && npm install",
+  "startCommand": "node server/index.mjs",
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "3001"
+  }
+} 
