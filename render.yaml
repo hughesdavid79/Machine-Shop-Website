@@ -4,8 +4,7 @@ services:
     env: node
     buildCommand: |
       cd server
-      npm install --verbose
-      npm ci --verbose
+      npm install
     startCommand: cd server && npm start
     rootDir: server
     envVars:
@@ -13,6 +12,7 @@ services:
         value: production
       - key: PORT
         value: 3001
+    nodeVersion: 18.x
     # No custom domain for backend - will use Render's default URL
 
   - type: static
