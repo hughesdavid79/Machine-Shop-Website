@@ -2,8 +2,12 @@ services:
   - type: web
     name: machine-shop-website
     env: node
-    buildCommand: cd server && npm install && cd .. && npm install
-    startCommand: node server/index.mjs
+    buildCommand: |
+      npm install
+      cd server && npm install
+    startCommand: npm run start
     envVars:
       - key: NODE_ENV
-        value: production 
+        value: production
+      - key: PORT
+        value: 3001

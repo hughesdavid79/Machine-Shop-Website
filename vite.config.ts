@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    base: isProduction ? 'https://rpomachineshop.com/' : '/',
+    base: isProduction ? '/Machine-Shop-Website/' : '/',
     build: {
       outDir: 'dist',
       sourcemap: true

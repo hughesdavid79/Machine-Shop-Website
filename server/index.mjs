@@ -149,16 +149,17 @@ async function initializeServer() {
         }));
 
     const allowedOrigins = [
+      'https://hughesdavid79.github.io',
       'https://rpomachineshop.com',
-      'http://localhost:5173'  // Local development URL
+      'http://localhost:5173'
     ];
 
     app.use(cors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
+          console.warn('Blocked by CORS:', origin);
           callback(new Error('Not allowed by CORS'));
         }
       },
