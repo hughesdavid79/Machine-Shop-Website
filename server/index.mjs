@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -11,6 +13,13 @@ import fs from 'fs/promises';
 import rateLimit from 'express-rate-limit';
 import { body, param, validationResult } from 'express-validator';
 import helmet from 'helmet';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Update database path
+const dbPath = join(__dirname, 'database.sqlite');
+const db = new Database(dbPath, { verbose: console.log });
 
 async function initializeUsers(db) {
   console.log('Checking user initialization...');
@@ -421,7 +430,11 @@ async function initializeServer() {
 
     // Add your routes here
     app.get('/api/health', (req, res) => {
-      res.json({ status: 'healthy', environment: process.env.NODE_ENV });
+      res.json({ 
+        status: 'healthy',
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+      });
     });
 
     app.post('/api/auth/login', loginLimiter, async (req, res) => {

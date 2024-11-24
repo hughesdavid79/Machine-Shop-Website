@@ -7,10 +7,35 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Build directories
 node_modules
 dist
 dist-ssr
 *.local
+build/
+
+# Environment files
+.env
+.env.*
+!.env.example
+server/.env
+server/.env.*
+!server/.env.example
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+database.sqlite
+server/database.sqlite
+
+# Security and auth files
+server/scripts/setup-auth.mjs
+server/scripts/manage-secrets.mjs
+server/scripts/reset-db.mjs
+scripts/setup-auth.ts
+scripts/setup-auth.js
+scripts/validate-env.mjs
 
 # Editor directories and files
 .vscode/*
@@ -23,24 +48,17 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
-.env.local
-.env.development
-.env.production
-test.env
+# Cache and temp files
+.cache
+.temp
+.tmp
+*.bak
 
-server/.env
-
-scripts/setup-auth.ts
-scripts/setup-auth.js
-scripts/validate-env.mjs
-
-server/scripts/setup-auth.mjs
-server/scripts/manage-secrets.mjs
-server/scripts/reset-db.mjs
-
-database.sqlite
-
-*.db
-
+# Deploy configuration
 DEPLOY.md
+render.yaml
+render.json
+
+# Coverage and test files
+coverage/
+.nyc_output/
